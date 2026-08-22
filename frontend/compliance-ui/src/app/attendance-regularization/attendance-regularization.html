@@ -1,0 +1,153 @@
+<div class="ar-page">
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Request Attendance Regularization</h3>
+      <form (ngSubmit)="submit()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Attendance Date</label>
+            <input type="date" [(ngModel)]="formDate" name="formDate" [min]="minDate" [max]="maxDate" required />
+          </div>
+          <div class="form-group">
+            <label>Reason</label>
+            <select [(ngModel)]="formReason" name="formReason" required>
+              <option *ngFor="let r of reasons" [value]="r">{{ r }}</option>
+            </select>
+          </div>
+          <div class="form-group" *ngIf="showOtherReason">
+            <label>Explain Reason</label>
+            <input type="text" [(ngModel)]="formOtherReason" name="formOtherReason" placeholder="Required for 'Other'" />
+          </div>
+          <div class="form-group">
+            <label>Correct Clock In</label>
+            <input type="time" [(ngModel)]="formClockInTime" name="formClockInTime" required />
+          </div>
+          <div class="form-group">
+            <label>Correct Clock Out</label>
+            <input type="time" [(ngModel)]="formClockOutTime" name="formClockOutTime" required />
+          </div>
+          <div class="form-group">
+            <label>Remarks / Justification</label>
+            <input type="text" [(ngModel)]="formRemarks" name="formRemarks" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" [disabled]="submitting">
+            <span class="material-symbols-outlined">send</span>
+            {{ submitting ? 'Submitting…' : 'Submit Request' }}
+          </button>
+        </div>
+        <p *ngIf="submitError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ submitError }}</p>
+        <p *ngIf="submitSuccess" class="alert alert-success"><span class="material-symbols-outlined">check_circle</span>{{ submitSuccess }}</p>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Rules</h3>
+      <ul class="rules-list">
+        <li>Only attendance from the last 30 days can be regularized.</li>
+        <li>Future dates are not allowed.</li>
+        <li>Only one pending request is allowed per attendance date.</li>
+        <li>Requests can't be edited once submitted — cancel and resubmit instead.</li>
+        <li>Approved or rejected requests are locked permanently.</li>
+        <li>Clock-out must be later than clock-in.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="material-symbols-outlined">history</span>My Regularization History</div>
+    <div class="table-wrap">
+      <table *ngIf="!historyLoading && history.length > 0">
+        <thead>
+          <tr><th>Date</th><th>Original In/Out</th><th>Requested In/Out</th><th>Reason</th><th>Status</th><th>Submitted</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let h of history">
+            <td>{{ h.attendanceDate | date:'mediumDate' }}</td>
+            <td>
+              <span *ngIf="h.originalClockIn">{{ h.originalClockIn | date:'shortTime' }} – {{ h.originalClockOut ? (h.originalClockOut | date:'shortTime') : '—' }}</span>
+              <span *ngIf="!h.originalClockIn">—</span>
+            </td>
+            <td>{{ h.requestedClockIn | date:'shortTime' }} – {{ h.requestedClockOut | date:'shortTime' }}</td>
+            <td class="reg-wrap-cell">{{ h.reason === 'Other' ? h.otherReasonText : h.reason }}</td>
+            <td><span class="badge" [ngClass]="'badge-' + h.status">{{ h.status }}</span></td>
+            <td>{{ h.submittedAt | date:'medium' }}</td>
+            <td>
+              <div class="reg-history-actions">
+                <button *ngIf="h.status === 'Pending'" class="btn btn-outline btn-sm" (click)="cancelRequest(h)">
+                  <span class="material-symbols-outlined">cancel</span>Cancel
+                </button>
+                <span *ngIf="h.status === 'Rejected' && h.rejectionReason" class="rejection-note">{{ h.rejectionReason }}</span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="!historyLoading && history.length === 0" class="empty-state">No regularization requests yet.</p>
+      <p *ngIf="historyLoading" class="loading-state">Loading history…</p>
+      <p *ngIf="historyError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ historyError }}</p>
+    </div>
+  </div>
+
+  <div class="section" *ngIf="canApprove">
+    <div class="section-title"><span class="material-symbols-outlined">fact_check</span>Pending Regularization Approvals</div>
+    <p *ngIf="approvalsError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ approvalsError }}</p>
+    <div class="table-wrap">
+      <table *ngIf="!approvalsLoading && approvals.length > 0">
+        <thead>
+          <tr><th>Employee</th><th>Date</th><th>Original In/Out</th><th>Requested In/Out</th><th>Hours Diff</th><th>Reason</th><th>Remarks</th><th>Submitted</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of pagedApprovals">
+            <td>
+              <div class="reg-employee-cell">
+                <span>{{ a.employeeName }}</span>
+                <span class="badge" [ngClass]="'badge-' + a.employeeRole">{{ a.employeeRole }}</span>
+              </div>
+            </td>
+            <td>{{ a.attendanceDate | date:'mediumDate' }}</td>
+            <td>
+              <span *ngIf="a.originalClockIn">{{ a.originalClockIn | date:'shortTime' }} – {{ a.originalClockOut ? (a.originalClockOut | date:'shortTime') : '—' }}</span>
+              <span *ngIf="!a.originalClockIn">—</span>
+            </td>
+            <td>{{ a.requestedClockIn | date:'shortTime' }} – {{ a.requestedClockOut | date:'shortTime' }}</td>
+            <td>{{ hoursDifference(a) }}</td>
+            <td class="reg-wrap-cell">{{ a.reason === 'Other' ? a.otherReasonText : a.reason }}</td>
+            <td class="reg-wrap-cell">{{ a.remarks || '—' }}</td>
+            <td>{{ a.submittedAt | date:'medium' }}</td>
+            <td>
+              <div class="reg-actions">
+                <button class="btn btn-success btn-sm" (click)="approve(a)"><span class="material-symbols-outlined">check</span>Approve</button>
+                <button class="btn btn-danger btn-sm" (click)="openRejectModal(a)"><span class="material-symbols-outlined">close</span>Reject</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <app-pagination
+  [totalItems]="approvals.length"
+  [pageSize]="approvalsPageSize"
+  [currentPage]="approvalsPage"
+  (pageChange)="approvalsPage = $event"
+  (pageSizeChange)="onApprovalsPageSizeChange($event)">
+</app-pagination>
+      <p *ngIf="!approvalsLoading && approvals.length === 0" class="empty-state">No pending regularization requests from your team.</p>
+      <p *ngIf="approvalsLoading" class="loading-state">Loading approvals…</p>
+    </div>
+  </div>
+
+  <app-modal [open]="showRejectModal" title="Reject Regularization Request" size="sm" (closed)="showRejectModal = false">
+    <div class="form-group">
+      <label>Rejection Reason</label>
+      <input type="text" [(ngModel)]="rejectReasonText" name="rejectReasonText" placeholder="Required" />
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-danger" [disabled]="rejecting" (click)="confirmReject()">
+        <span class="material-symbols-outlined">close</span>{{ rejecting ? 'Rejecting…' : 'Confirm Reject' }}
+      </button>
+      <button type="button" class="btn btn-outline" (click)="showRejectModal = false">Cancel</button>
+    </div>
+    <p *ngIf="rejectError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ rejectError }}</p>
+  </app-modal>
+</div>

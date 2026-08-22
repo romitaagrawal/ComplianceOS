@@ -1,0 +1,53 @@
+<div class="weekly-chart">
+  <div class="weekly-chart-header">
+    <span class="weekly-range-label">{{ weekRangeLabel }}</span>
+    <div class="weekly-header-actions">
+      <button type="button" class="btn btn-outline btn-sm" (click)="goToThisWeek()" [disabled]="weekOffset === 0">
+        This Week
+      </button>
+      <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedDateIso" (click)="onRegularizeClick()">
+        <span class="material-symbols-outlined">edit_calendar</span>Regularize
+      </button>
+    </div>
+  </div>
+
+  <div class="weekly-legend">
+    <span><i class="legend-swatch swatch-target"></i>Target</span>
+    <span><i class="legend-swatch swatch-worked"></i>Worked</span>
+    <span><i class="legend-swatch swatch-overtime"></i>Overtime</span>
+  </div>
+
+  <div class="weekly-bars-row">
+    <button type="button" class="weekly-nav-btn" (click)="goPrevWeek()" aria-label="Previous week">
+      <span class="material-symbols-outlined">chevron_left</span>
+    </button>
+
+    <div class="weekly-bars" [class.weekly-fade]="isNavigating" [style.height.px]="height">
+      <div
+        class="weekly-col"
+        *ngFor="let day of days"
+        [class.is-today]="day.isToday"
+        [class.is-selected]="day.dateIso === selectedDateIso"
+        (click)="selectDay(day)">
+        <div class="weekly-total-label" [class.has-overtime]="day.overtime > 0">{{ totalLabel(day) }}</div>
+
+        <div class="weekly-track-group" [title]="tooltipFor(day)">
+          <div class="weekly-track weekly-track-regular">
+            <div class="weekly-target-bg" [style.height.%]="targetHeightPercent(day)"></div>
+            <div class="weekly-worked-fill" [style.height.%]="workedHeightPercent(day)"></div>
+          </div>
+          <div class="weekly-track weekly-track-overtime" *ngIf="day.overtime > 0">
+            <div class="weekly-overtime-fill" [style.height.%]="overtimeHeightPercent(day)"></div>
+          </div>
+        </div>
+
+        <div class="weekly-day-label">{{ day.label }}</div>
+        <div class="weekly-date-label">{{ day.dateLabel }}</div>
+      </div>
+    </div>
+
+    <button type="button" class="weekly-nav-btn" (click)="goNextWeek()" aria-label="Next week">
+      <span class="material-symbols-outlined">chevron_right</span>
+    </button>
+  </div>
+</div>

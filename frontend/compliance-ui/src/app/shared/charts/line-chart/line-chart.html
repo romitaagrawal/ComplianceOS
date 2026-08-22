@@ -1,0 +1,26 @@
+<svg
+  *ngIf="data.length > 0; else noLineData"
+  class="line-chart-svg"
+  [attr.viewBox]="'0 0 ' + width + ' ' + height"
+  [attr.width]="width"
+  [attr.height]="height + 20"
+  preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient [attr.id]="gradientId" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" [attr.stop-color]="color" stop-opacity="0.4"></stop>
+      <stop offset="100%" [attr.stop-color]="color" stop-opacity="0"></stop>
+    </linearGradient>
+  </defs>
+
+  <polygon [attr.points]="areaPoints" [attr.fill]="'url(#' + gradientId + ')'" class="line-area"></polygon>
+  <polyline [attr.points]="points" [attr.stroke]="color" class="line-path"></polyline>
+
+  <g *ngFor="let dot of dotCoords()">
+    <circle [attr.cx]="dot.x" [attr.cy]="dot.y" r="3.5" [attr.fill]="color" class="line-dot">
+      <title>{{ dot.label }}: {{ dot.value }}</title>
+    </circle>
+  </g>
+</svg>
+<ng-template #noLineData>
+  <p class="empty-state">No data to display.</p>
+</ng-template>

@@ -1,0 +1,77 @@
+<div class="app-shell" [class.sidebar-collapsed]="collapsed()">
+  <aside class="app-sidebar">
+    <div class="sidebar-brand">
+      <span class="material-symbols-outlined brand-icon">verified_user</span>
+      <span class="brand-text" *ngIf="!collapsed()">{{ brandLabel }}<strong>{{ brandAccent }}</strong></span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button
+        *ngFor="let item of navItems"
+        type="button"
+        class="sidebar-nav-item"
+        [class.active]="item.key === activeKey"
+        (click)="onNavClick(item.key)"
+        [title]="item.label">
+        <span class="material-symbols-outlined">{{ item.icon }}</span>
+        <span class="nav-label" *ngIf="!collapsed()">{{ item.label }}</span>
+        <span class="nav-badge" *ngIf="!collapsed() && item.badge">{{ item.badge }}</span>
+      </button>
+    </nav>
+
+    <button type="button" class="sidebar-collapse-btn" (click)="toggleCollapse()" [title]="collapsed() ? 'Expand' : 'Collapse'">
+      <span class="material-symbols-outlined">{{ collapsed() ? 'chevron_right' : 'chevron_left' }}</span>
+    </button>
+  </aside>
+
+  <div class="app-main">
+    <header class="app-topbar">
+      <div class="topbar-title">
+        <h1>{{ title }}</h1>
+        <p *ngIf="subtitle">{{ subtitle }}</p>
+      </div>
+      <div class="topbar-right">
+        <span class="badge" [ngClass]="'badge-' + role" *ngIf="role">{{ role }}</span>
+        <div class="user-chip">
+          <span class="user-avatar">{{ initials }}</span>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" (click)="openChangePasswordModal()">
+          <span class="material-symbols-outlined">lock_reset</span>
+          Change Password
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" (click)="onLogout()">
+          <span class="material-symbols-outlined">logout</span>
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <main class="app-content fade-in">
+      <ng-content></ng-content>
+    </main>
+  </div>
+</div>
+
+<app-modal [open]="showChangePasswordModal" title="Change Password" size="sm" (closed)="showChangePasswordModal = false">
+  <div class="form-group">
+    <label>Current Password</label>
+    <input type="password" [(ngModel)]="changePasswordForm.currentPassword" name="currentPassword" autocomplete="current-password" />
+  </div>
+  <div class="form-group">
+    <label>New Password</label>
+    <input type="password" [(ngModel)]="changePasswordForm.newPassword" name="newPassword" autocomplete="new-password" />
+  </div>
+  <div class="form-group">
+    <label>Confirm New Password</label>
+    <input type="password" [(ngModel)]="changePasswordForm.confirmNewPassword" name="confirmNewPassword" autocomplete="new-password" />
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-primary" [disabled]="changingPassword" (click)="submitChangePassword()">
+      <span class="material-symbols-outlined">lock_reset</span>
+      {{ changingPassword ? 'Changing…' : 'Change Password' }}
+    </button>
+    <button type="button" class="btn btn-outline" (click)="showChangePasswordModal = false">Cancel</button>
+  </div>
+  <p *ngIf="changePasswordError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ changePasswordError }}</p>
+  <p *ngIf="changePasswordSuccess" class="alert alert-success"><span class="material-symbols-outlined">check_circle</span>{{ changePasswordSuccess }}</p>
+</app-modal>

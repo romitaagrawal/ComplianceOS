@@ -1,0 +1,28 @@
+<div class="donut-chart-wrap">
+  <svg [attr.width]="size" [attr.height]="size" [attr.viewBox]="'0 0 ' + size + ' ' + size">
+    <circle
+      [attr.cx]="center" [attr.cy]="center" [attr.r]="radius"
+      fill="none" stroke="#eef1f6" [attr.stroke-width]="thickness">
+    </circle>
+    <circle
+      *ngFor="let seg of segments()"
+      [attr.cx]="center" [attr.cy]="center" [attr.r]="radius"
+      fill="none"
+      [attr.stroke]="seg.color"
+      [attr.stroke-width]="thickness"
+      [attr.stroke-dasharray]="seg.dash"
+      [attr.stroke-dashoffset]="seg.offset"
+      [attr.transform]="'rotate(-90 ' + center + ' ' + center + ')'"
+      class="donut-segment">
+    </circle>
+    <text [attr.x]="center" [attr.y]="center - 4" text-anchor="middle" class="donut-total">{{ total }}</text>
+    <text [attr.x]="center" [attr.y]="center + 15" text-anchor="middle" class="donut-caption">{{ centerLabel }}</text>
+  </svg>
+  <ul class="donut-legend">
+    <li *ngFor="let d of data">
+      <span class="legend-dot" [style.background]="d.color"></span>
+      {{ d.label }} <strong>{{ d.value }}</strong>
+    </li>
+    <li *ngIf="data.length === 0" class="text-muted">No data yet.</li>
+  </ul>
+</div>

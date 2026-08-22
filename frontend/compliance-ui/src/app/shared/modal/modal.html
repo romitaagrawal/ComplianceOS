@@ -1,0 +1,13 @@
+<div class="modal-backdrop" *ngIf="open" (click)="onBackdropClick()">
+  <div class="modal-dialog" [ngClass]="'modal-' + size" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ title }}</h3>
+      <button type="button" class="modal-close" (click)="closed.emit()">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <ng-content></ng-content>
+    </div>
+  </div>
+</div>

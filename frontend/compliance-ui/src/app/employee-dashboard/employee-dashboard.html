@@ -1,0 +1,242 @@
+<app-shell
+  title="Employee Dashboard"
+  [subtitle]="myProfile ? ('Welcome back, ' + myProfile.fullName) : ''"
+  [userName]="myProfile?.fullName || ''"
+  [navItems]="navItems"
+  [activeKey]="activeSection"
+  (navSelect)="setSection($event)">
+
+  <!-- ================= OVERVIEW ================= -->
+  <div *ngIf="activeSection === 'overview'" class="fade-in">
+    <div class="grid grid-4">
+      <app-kpi-card icon="checklist" label="Total Tasks" [value]="tasks.length" color="primary"></app-kpi-card>
+      <app-kpi-card icon="task_alt" label="Completed Tasks" [value]="completedTaskCount" color="success"></app-kpi-card>
+      <app-kpi-card icon="event_busy" label="Pending Leave" [value]="pendingLeaveCount" color="warning"></app-kpi-card>
+      <app-kpi-card icon="schedule" label="Hours This Week" [value]="weeklyHours" suffix="h" color="info"></app-kpi-card>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 22px;">
+      <div class="card">
+        <h3><span class="material-symbols-outlined" style="vertical-align: middle; font-size: 16px;">person</span> My Profile</h3>
+        <ng-container *ngIf="myProfile">
+          <p style="font-weight:700; font-size:15px;">{{ myProfile.fullName }}</p>
+          <p class="text-muted">{{ myProfile.email }}</p>
+          <p>Role: <span class="badge" [ngClass]="'badge-' + myProfile.role">{{ myProfile.role }}</span></p>
+          <p>Department: {{ myProfile.departmentName || '—' }}</p>
+          <p>Status: <span class="badge" [ngClass]="'badge-' + myProfile.accountStatus">{{ myProfile.accountStatus }}</span></p>
+        </ng-container>
+      </div>
+
+      <div class="card">
+        <h3><span class="material-symbols-outlined" style="vertical-align: middle; font-size: 16px;">supervisor_account</span> My Manager</h3>
+        <ng-container *ngIf="myManager; else noManager">
+          <p style="font-weight:700; font-size:15px;">{{ myManager.fullName }}</p>
+          <p class="text-muted">{{ myManager.role }} · {{ myManager.departmentName || '—' }}</p>
+          <p class="text-muted">{{ myManager.email }}</p>
+        </ng-container>
+        <ng-template #noManager><p class="empty-state">No manager assigned.</p></ng-template>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 22px;">
+      <div class="card chart-card">
+        <h3>Task Status Breakdown</h3>
+        <app-donut-chart [data]="taskStatusChart" centerLabel="Tasks"></app-donut-chart>
+      </div>
+      <div class="card chart-card">
+        <h3>Leave Request Status</h3>
+        <app-donut-chart [data]="leaveStatusChart" centerLabel="Requests"></app-donut-chart>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 22px;">
+      <h3>Hours Worked (Last 7 Entries)</h3>
+      <app-weekly-hours-chart [logs]="logs" [targetHours]="9" (regularize)="onRegularizeDate($event)"></app-weekly-hours-chart>
+    </div>
+  </div>
+
+  <!-- ================= ATTENDANCE ================= -->
+  <div *ngIf="activeSection === 'attendance'" class="fade-in">
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Today</h3>
+        <p *ngIf="attendanceError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ attendanceError }}</p>
+        <ng-container *ngIf="todaysLog; else notClockedIn">
+          <p>Clocked in at <strong>{{ todaysLog.clockIn | date:'shortTime' }}</strong></p>
+          <p *ngIf="todaysLog.clockOut">Clocked out at <strong>{{ todaysLog.clockOut | date:'shortTime' }}</strong></p>
+          <button *ngIf="!todaysLog.clockOut" class="btn btn-danger" (click)="onClockOut()">
+            <span class="material-symbols-outlined">logout</span> Clock Out
+          </button>
+        </ng-container>
+        <ng-template #notClockedIn>
+          <button class="btn btn-success" (click)="onClockIn()">
+            <span class="material-symbols-outlined">login</span> Clock In
+          </button>
+        </ng-template>
+      </div>
+
+      <div class="card chart-card">
+        <h3>Weekly Hours</h3>
+        <app-weekly-hours-chart [logs]="logs" [targetHours]="9" (regularize)="onRegularizeDate($event)"></app-weekly-hours-chart>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="material-symbols-outlined">history</span>Attendance History</div>
+      <div class="table-wrap">
+        <table *ngIf="logs.length > 0">
+          <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Total Hours</th><th>Overtime</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let log of historyLogs">
+              <td>{{ log.clockIn | date:'mediumDate' }}</td>
+              <td>{{ log.clockIn | date:'shortTime' }}</td>
+              <td>{{ log.clockOut ? (log.clockOut | date:'shortTime') : '—' }}</td>
+              <td>{{ log.totalHours ? (log.totalHours | number:'1.2-2') : '—' }}</td>
+              <td><span class="badge" [ngClass]="log.isOvertimeFlagged ? 'badge-High' : 'badge-Low'">{{ log.isOvertimeFlagged ? 'Yes' : 'No' }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <app-pagination [totalItems]="historyTotalCount" [pageSize]="historyPageSize" [currentPage]="historyPage" (pageChange)="onHistoryPageChange($event)" (pageSizeChange)="onHistoryPageSizeChange($event)"></app-pagination>
+        <p *ngIf="logs.length === 0" class="empty-state">No attendance records yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TASKS ================= -->
+  <div *ngIf="activeSection === 'tasks'" class="fade-in">
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Completion Rate</h3>
+        <app-progress-ring [percent]="taskCompletionPercent" color="#16a34a" label="Tasks completed"></app-progress-ring>
+      </div>
+      <div class="card chart-card">
+        <h3>Status Breakdown</h3>
+        <app-donut-chart [data]="taskStatusChart" centerLabel="Tasks"></app-donut-chart>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="material-symbols-outlined">checklist</span>My Tasks</div>
+      <p *ngIf="taskError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ taskError }}</p>
+      <div class="table-wrap">
+        <table *ngIf="!tasksLoading && tasks.length > 0">
+          <thead><tr><th>Title</th><th>Description</th><th>Priority</th><th>Deadline</th><th>Assigned By</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let t of pagedTasks">
+              <td>{{ t.title }}</td>
+              <td>{{ t.description || '—' }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + t.priority">{{ t.priority }}</span></td>
+              <td>{{ t.deadline ? (t.deadline | date:'mediumDate') : '—' }}</td>
+              <td>{{ t.assignedByName || '—' }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + t.status">{{ t.status }}</span></td>
+              <td>
+  <div class="task-actions" *ngIf="nextStatus(t.status) as next">
+    <button class="btn btn-primary btn-sm" (click)="updateTaskStatus(t, next)">
+      Mark {{ next === 'InProgress' ? 'In Progress' : next }}
+    </button>
+  </div>
+</td>
+            </tr>
+          </tbody>
+        </table>
+        <app-pagination [totalItems]="tasks.length" [pageSize]="tasksPageSize" [currentPage]="tasksPage" (pageChange)="tasksPage = $event" (pageSizeChange)="onTasksPageSizeChange($event)"> </app-pagination>
+        <p *ngIf="!tasksLoading && tasks.length === 0" class="empty-state">No tasks assigned to you.</p>
+        <p *ngIf="tasksLoading" class="loading-state">Loading tasks…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LEAVE ================= -->
+  <div *ngIf="activeSection === 'leave'" class="fade-in">
+    <div class="grid grid-2">
+      <div class="card chart-card">
+        <h3>Request Status</h3>
+        <app-donut-chart [data]="leaveStatusChart" centerLabel="Requests"></app-donut-chart>
+      </div>
+      <div class="card">
+  <h3>Apply for Leave</h3>
+  <form (ngSubmit)="submitLeave()">
+    <div class="form-grid">
+      <div class="form-group"><label>Start Date</label><input type="date" [(ngModel)]="leaveForm.startDate" name="startDate" required /></div>
+      <div class="form-group"><label>End Date</label><input type="date" [(ngModel)]="leaveForm.endDate" name="endDate" required /></div>
+      <div class="form-group">
+        <label>Leave Type</label>
+        <select [(ngModel)]="leaveForm.leaveType" name="leaveType" required>
+          <option *ngFor="let t of leaveTypes" [value]="t">{{ t }}</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Reason</label><input type="text" [(ngModel)]="leaveForm.reason" name="reason" placeholder="Optional" /></div>
+    </div>
+
+    <div class="form-group leave-attachment-group">
+      <label>
+        Supporting Document
+        <span *ngIf="isMedicalLeaveSelected" class="required-mark">(required for Medical Leave)</span>
+      </label>
+
+      <input type="file" #leaveFileInput accept=".pdf,.jpg,.jpeg,.png" (change)="onLeaveFileSelected($event)" hidden />
+
+      <div class="file-upload-row" *ngIf="!leaveForm.attachment">
+        <button type="button" class="btn btn-outline btn-sm" (click)="leaveFileInput.click()">
+          <span class="material-symbols-outlined">upload_file</span>Choose File
+        </button>
+        <span class="file-upload-hint">PDF, JPG, JPEG or PNG · up to 5 MB</span>
+      </div>
+
+      <div class="file-selected-row" *ngIf="leaveForm.attachment">
+        <span class="material-symbols-outlined">description</span>
+        <span class="file-selected-name">{{ leaveForm.attachment.name }}</span>
+        <span class="file-selected-size">({{ (leaveForm.attachment.size / 1024 / 1024) | number:'1.1-2' }} MB)</span>
+        <button type="button" class="btn btn-outline btn-sm" (click)="removeLeaveAttachment(leaveFileInput)">
+          <span class="material-symbols-outlined">close</span>Remove
+        </button>
+      </div>
+
+      <p *ngIf="leaveAttachmentError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ leaveAttachmentError }}</p>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="submittingLeave">
+        <span class="material-symbols-outlined">send</span>
+        {{ submittingLeave ? 'Submitting…' : 'Apply for Leave' }}
+      </button>
+    </div>
+    <p *ngIf="leaveError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ leaveError }}</p>
+    <p *ngIf="leaveSuccess" class="alert alert-success"><span class="material-symbols-outlined">check_circle</span>{{ leaveSuccess }}</p>
+  </form>
+</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="material-symbols-outlined">event_note</span>Leave History</div>
+      <div class="table-wrap">
+        <table *ngIf="!leaveLoading && leaveRequests.length > 0">
+  <thead><tr><th>Start</th><th>End</th><th>Type</th><th>Reason</th><th>Status</th><th>Attachment</th></tr></thead>
+  <tbody>
+    <tr *ngFor="let l of leaveRequests">
+      <td>{{ l.startDate | date:'mediumDate' }}</td>
+      <td>{{ l.endDate | date:'mediumDate' }}</td>
+      <td>{{ l.leaveType }}</td>
+      <td>{{ l.reason || '—' }}</td>
+      <td><span class="badge" [ngClass]="'badge-' + l.status">{{ l.status }}</span></td>
+      <td>
+        <button *ngIf="l.hasAttachment" class="btn btn-outline btn-sm" [disabled]="downloadingAttachmentId === l.id" (click)="downloadAttachment(l)">
+          <span class="material-symbols-outlined">download</span>{{ downloadingAttachmentId === l.id ? 'Downloading…' : 'View' }}
+        </button>
+        <span *ngIf="!l.hasAttachment">—</span>
+      </td>
+    </tr>
+  </tbody>
+</table>
+        <app-pagination [totalItems]="leaveRequests.length" [pageSize]="leavePageSize" [currentPage]="leavePage" (pageChange)="leavePage = $event" (pageSizeChange)="onLeavePageSizeChange($event)"> </app-pagination>
+        <p *ngIf="!leaveLoading && leaveRequests.length === 0" class="empty-state">No leave requests yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= REGULARIZATION ================= -->
+<div *ngIf="activeSection === 'regularization'" class="fade-in">
+  <app-attendance-regularization [prefillDate]="regularizationPrefillDate" (decided)="onRegularizationDecided()"></app-attendance-regularization>
+</div>
+
+</app-shell>

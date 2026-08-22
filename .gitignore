@@ -1,0 +1,21 @@
+# ===== Backend (.NET) — note: "ComplianceApi" here is the inner project folder =====
+ComplianceApi/bin/
+ComplianceApi/obj/
+ComplianceApi/*.user
+.vs/
+
+# Secrets — never commit the real appsettings.json
+ComplianceApi/appsettings.json
+ComplianceApi/appsettings.Development.json
+
+# Runtime-created folder for Leave attachment uploads
+ComplianceApi/LeaveAttachments/
+
+# ===== Frontend (Angular) =====
+frontend/node_modules/
+frontend/.angular/
+frontend/dist/
+
+# ===== OS/editor noise =====
+.DS_Store
+Thumbs.db

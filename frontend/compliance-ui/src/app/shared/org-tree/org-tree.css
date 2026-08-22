@@ -1,0 +1,120 @@
+.org-chart-scroll {
+  overflow-x: auto;
+  padding: 20px 10px 10px;
+}
+
+.org-chart,
+.org-chart ul {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.org-chart li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  padding: 30px 12px 0 12px;
+}
+
+/* Connector lines: a horizontal bar joining siblings, and a vertical drop to each child */
+.org-chart li::before,
+.org-chart li::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 30px;
+  border-top: 2px solid #cbd5e1;
+}
+.org-chart li::after {
+  right: auto;
+  left: 50%;
+  border-left: 2px solid #cbd5e1;
+}
+
+.org-chart li:only-child::before,
+.org-chart li:only-child::after {
+  display: none;
+}
+.org-chart li:only-child {
+  padding-top: 0;
+}
+
+.org-chart li:first-child::before,
+.org-chart li:last-child::after {
+  border: 0 none;
+}
+.org-chart li:last-child::before {
+  border-right: 2px solid #cbd5e1;
+  border-radius: 0 6px 0 0;
+}
+.org-chart li:first-child::after {
+  border-radius: 6px 0 0 0;
+}
+
+/* Vertical line dropping from a parent down into its own row of children */
+.org-chart ul ul::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 0;
+  height: 30px;
+  border-left: 2px solid #cbd5e1;
+}
+
+/* The node itself */
+.org-node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: #fff;
+  border: 1px solid var(--color-border, #e2e5eb);
+  border-radius: 10px;
+  padding: 10px 16px;
+  min-width: 130px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  white-space: nowrap;
+}
+
+.org-node-root {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.org-name {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.org-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.org-dept,
+.org-id {
+  color: var(--color-muted, #6b7280);
+  font-size: 11.5px;
+}
+
+/* Slightly different accent colors per level so the eye can scan quickly */
+.org-node-HRManager { border-top: 3px solid #9d174d; }
+.org-node-Manager { border-top: 3px solid #1e40af; }
+.org-node-HREmployee { border-top: 3px solid #5b21b6; }
+.org-node-Employee { border-top: 3px solid #92400e; }
+
+@media (max-width: 640px) {
+  .org-node { min-width: 100px; padding: 8px 10px; }
+  .org-name { font-size: 12px; }
+}

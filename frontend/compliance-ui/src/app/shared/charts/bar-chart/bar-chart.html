@@ -1,0 +1,13 @@
+<div class="bar-chart" [style.height.px]="height" *ngIf="data.length > 0; else noBarData">
+  <div class="bar-col" *ngFor="let d of data">
+    <div class="bar-track">
+      <div class="bar-fill" [style.height.%]="heightPercent(d.value)" [style.background]="d.color || 'var(--color-primary)'">
+        <span class="bar-value" *ngIf="d.value > 0">{{ d.value }}</span>
+      </div>
+    </div>
+    <div class="bar-label">{{ d.label }}</div>
+  </div>
+</div>
+<ng-template #noBarData>
+  <p class="empty-state">No data to display.</p>
+</ng-template>

@@ -1,0 +1,90 @@
+<div class="org-chart-scroll">
+  <table class="org-table" *ngIf="nodes.length; else empty">
+    <tbody>
+      <tr>
+        <td [attr.colspan]="nodes.length">
+          <div class="org-node org-node-root">
+            <span class="material-symbols-outlined org-node-icon">domain</span>
+            <span class="org-name">Organization</span>
+          </div>
+        </td>
+      </tr>
+
+      <tr class="org-vline">
+        <td [attr.colspan]="nodes.length"></td>
+      </tr>
+
+      <tr class="org-hline">
+        <td
+          *ngFor="let n of nodes; let first = first; let last = last"
+          [class.first]="first"
+          [class.last]="last"
+          [class.only]="nodes.length === 1">
+        </td>
+      </tr>
+
+      <tr class="org-vline">
+        <td *ngFor="let n of nodes"></td>
+      </tr>
+
+      <tr>
+        <td *ngFor="let n of nodes">
+          <ng-container *ngTemplateOutlet="unit; context: { $implicit: n }"></ng-container>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<ng-template #unit let-node>
+  <table class="org-table">
+    <tbody>
+      <tr>
+        <td [attr.colspan]="node.children.length || 1">
+          <div class="org-node" [ngClass]="'org-node-' + node.role">
+            <span class="material-symbols-outlined org-node-icon">
+              {{ node.role === 'HRManager' ? 'shield_person' : node.role === 'Manager' ? 'supervisor_account' : node.role === 'HREmployee' ? 'support_agent' : 'person' }}
+            </span>
+            <div class="org-node-body">
+              <span class="org-name">{{ node.fullName }}</span>
+              <span class="badge" [ngClass]="'badge-' + node.role">{{ node.role }}</span>
+              <span class="org-meta">
+                <span class="org-dept" *ngIf="node.departmentName">{{ node.departmentName }}</span>
+                <span class="org-id" *ngIf="node.displayId">{{ node.displayId }}</span>
+              </span>
+            </div>
+          </div>
+        </td>
+      </tr>
+
+      <ng-container *ngIf="node.children.length">
+        <tr class="org-vline">
+          <td [attr.colspan]="node.children.length"></td>
+        </tr>
+
+        <tr class="org-hline">
+          <td
+            *ngFor="let c of node.children; let first = first; let last = last"
+            [class.first]="first"
+            [class.last]="last"
+            [class.only]="node.children.length === 1">
+          </td>
+        </tr>
+
+        <tr class="org-vline">
+          <td *ngFor="let c of node.children"></td>
+        </tr>
+
+        <tr>
+          <td *ngFor="let c of node.children">
+            <ng-container *ngTemplateOutlet="unit; context: { $implicit: c }"></ng-container>
+          </td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </table>
+</ng-template>
+
+<ng-template #empty>
+  <p class="empty-state">No hierarchy data available.</p>
+</ng-template>

@@ -1,0 +1,19 @@
+<div class="progress-ring-wrap">
+  <svg [attr.width]="size" [attr.height]="size" [attr.viewBox]="'0 0 ' + size + ' ' + size">
+    <circle
+      class="progress-ring-track"
+      [attr.cx]="center" [attr.cy]="center" [attr.r]="radius"
+      fill="none" [attr.stroke-width]="thickness">
+    </circle>
+    <circle
+      class="progress-ring-fill"
+      [attr.cx]="center" [attr.cy]="center" [attr.r]="radius"
+      fill="none" [attr.stroke]="color" [attr.stroke-width]="thickness"
+      [attr.stroke-dasharray]="circumference"
+      [attr.stroke-dashoffset]="offset"
+      [attr.transform]="'rotate(-90 ' + center + ' ' + center + ')'">
+    </circle>
+    <text [attr.x]="center" [attr.y]="center + 7" text-anchor="middle" class="progress-ring-percent">{{ clampedPercent }}%</text>
+  </svg>
+  <div class="progress-ring-label" *ngIf="label">{{ label }}</div>
+</div>

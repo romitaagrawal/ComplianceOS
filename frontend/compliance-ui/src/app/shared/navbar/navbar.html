@@ -1,0 +1,7 @@
+<div class="navbar">
+  <h1>{{ title }}</h1>
+  <div class="navbar-right">
+    <span class="badge" [ngClass]="'badge-' + role" *ngIf="role">{{ role }}</span>
+    <button class="btn btn-secondary btn-sm" (click)="onLogout()">Logout</button>
+  </div>
+</div>

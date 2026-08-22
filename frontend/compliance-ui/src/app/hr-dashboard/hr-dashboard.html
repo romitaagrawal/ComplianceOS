@@ -1,0 +1,622 @@
+<app-shell
+  [title]="isHrManager ? 'HR Manager Dashboard' : 'HR Dashboard'"
+  [subtitle]="myProfile ? myProfile.fullName + ' · ' + (myProfile.departmentName || 'HR') : ''"
+  [navItems]="navItems"
+  [activeKey]="activeTab"
+  (navSelect)="setTab($event)">
+
+  <!-- ================= OVERVIEW (HR Manager only) ================= -->
+  <div *ngIf="isHrManager && activeTab === 'overview'" class="fade-in">
+    <div class="grid grid-4">
+      <app-kpi-card icon="groups" label="Total Users" [value]="allUsers.length" color="primary"></app-kpi-card>
+      <app-kpi-card icon="schedule" label="Attendance Records" [value]="allAttendance.length" color="info"></app-kpi-card>
+      <app-kpi-card icon="warning" label="Overtime Rate" [value]="overtimeRatePercent" suffix="%" color="warning"></app-kpi-card>
+      <app-kpi-card icon="event_busy" label="Leave Requests (Org-wide)" [value]="allLeave.length" color="success"></app-kpi-card>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 22px;">
+      <div class="card chart-card">
+        <h3>Workforce by Role</h3>
+        <app-donut-chart [data]="roleDistributionChart" centerLabel="Employees"></app-donut-chart>
+      </div>
+      <div class="card chart-card">
+        <h3>Account Status</h3>
+        <app-donut-chart [data]="accountStatusChart" centerLabel="Accounts"></app-donut-chart>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 22px;">
+      <div class="card">
+        <h3>Headcount by Department</h3>
+        <app-bar-chart [data]="departmentHeadcountChart"></app-bar-chart>
+      </div>
+      <div class="card chart-card">
+        <h3>Organization-wide Leave Status</h3>
+        <app-donut-chart [data]="orgLeaveStatusChart" centerLabel="Requests"></app-donut-chart>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MY WORK ================= -->
+  <div *ngIf="activeTab === 'mine'" class="fade-in">
+
+    <div class="grid grid-2">
+      <div class="card" *ngIf="myProfile">
+        <h3><span class="material-symbols-outlined" style="vertical-align: middle; font-size: 16px;">person</span> My Profile</h3>
+        <p style="font-weight:700; font-size:15px;">{{ myProfile.fullName }}</p>
+        <p class="text-muted">{{ myProfile.email }}</p>
+        <p>Role: <span class="badge" [ngClass]="'badge-' + myProfile.role">{{ myProfile.role }}</span></p>
+        <p>Department: {{ myProfile.departmentName || '—' }}</p>
+        <p>Status: <span class="badge" [ngClass]="'badge-' + myProfile.accountStatus">{{ myProfile.accountStatus }}</span></p>
+      </div>
+
+      <div class="card">
+        <h3><span class="material-symbols-outlined" style="vertical-align: middle; font-size: 16px;">supervisor_account</span> My Manager</h3>
+        <ng-container *ngIf="myManager; else noManager">
+          <p style="font-weight:700; font-size:15px;">{{ myManager.fullName }}</p>
+          <p class="text-muted">{{ myManager.role }} · {{ myManager.departmentName || '—' }}</p>
+          <p class="text-muted">{{ myManager.email }}</p>
+        </ng-container>
+        <ng-template #noManager><p class="empty-state">No manager assigned (top of the reporting chain).</p></ng-template>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="material-symbols-outlined">schedule</span>My Attendance</div>
+      <div class="grid grid-2">
+        <div class="card">
+          <p *ngIf="attendanceError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ attendanceError }}</p>
+          <ng-container *ngIf="todaysLog; else notClockedIn">
+            <p>Clocked in at <strong>{{ todaysLog.clockIn | date:'shortTime' }}</strong></p>
+            <p *ngIf="todaysLog.clockOut">Clocked out at <strong>{{ todaysLog.clockOut | date:'shortTime' }}</strong></p>
+            <button *ngIf="!todaysLog.clockOut" class="btn btn-danger" (click)="onClockOut()">
+              <span class="material-symbols-outlined">logout</span>Clock Out
+            </button>
+          </ng-container>
+          <ng-template #notClockedIn>
+            <button class="btn btn-success" (click)="onClockIn()">
+              <span class="material-symbols-outlined">login</span>Clock In
+            </button>
+          </ng-template>
+          <div class="card" style="margin-top: 18px;">
+  <h3>My Weekly Hours</h3>
+  <app-weekly-hours-chart [logs]="logs" [targetHours]="9" (regularize)="onRegularizeDate($event)"></app-weekly-hours-chart>
+</div>
+        </div>
+        <div class="card">
+          <h3>Task Completion</h3>
+          <app-progress-ring [percent]="myTaskCompletionPercent" color="#16a34a" label="of my tasks completed"></app-progress-ring>
+        </div>
+      </div>
+      <div class="table-wrap" style="margin-top: 14px;">
+        <table *ngIf="historyLogs.length > 0">
+          <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Total Hours</th><th>Overtime</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let log of historyLogs">
+              <td>{{ log.clockIn | date:'mediumDate' }}</td>
+              <td>{{ log.clockIn | date:'shortTime' }}</td>
+              <td>{{ log.clockOut ? (log.clockOut | date:'shortTime') : '—' }}</td>
+              <td>{{ log.totalHours ? (log.totalHours | number:'1.2-2') : '—' }}</td>
+              <td><span class="badge" [ngClass]="log.isOvertimeFlagged ? 'badge-High' : 'badge-Low'">{{ log.isOvertimeFlagged ? 'Yes' : 'No' }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <app-pagination
+  [totalItems]="historyTotalCount"
+  [pageSize]="historyPageSize"
+  [currentPage]="historyPage"
+  (pageChange)="onHistoryPageChange($event)"
+  (pageSizeChange)="onHistoryPageSizeChange($event)">
+</app-pagination>
+        <p *ngIf="historyLogs.length === 0" class="empty-state">No attendance records yet.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span><span class="material-symbols-outlined">checklist</span>My Tasks</span>
+        <button class="btn btn-primary btn-sm" *ngIf="isHrManager && !showPersonalTaskForm" (click)="startCreatePersonalTask()">
+          <span class="material-symbols-outlined">add</span>New Personal Task
+        </button>
+      </div>
+
+      <p *ngIf="myTaskError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ myTaskError }}</p>
+      <div class="table-wrap">
+        <table *ngIf="myTasks.length > 0">
+          <thead><tr><th>Title</th><th>Description</th><th>Priority</th><th>Deadline</th><th>Source</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let t of pagedMyTasks">
+              <td>{{ t.title }}</td>
+              <td>{{ t.description || '—' }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + t.priority">{{ t.priority }}</span></td>
+              <td>{{ t.deadline ? (t.deadline | date:'mediumDate') : '—' }}</td>
+              <td>{{ isOwnTask(t) ? 'Personal' : (t.assignedByName || '—') }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + t.status">{{ t.status }}</span></td>
+              <td>
+  <div class="task-actions">
+    <button *ngIf="nextStatus(t.status) as next" class="btn btn-primary btn-sm" (click)="updateMyTaskStatus(t, next)">
+      Mark {{ next === 'InProgress' ? 'In Progress' : next }}
+    </button>
+    <ng-container *ngIf="isOwnTask(t)">
+      <button class="btn btn-outline btn-sm" (click)="startEditPersonalTask(t)"><span class="material-symbols-outlined">edit</span></button>
+      <button class="btn btn-danger btn-sm" (click)="deletePersonalTask(t)"><span class="material-symbols-outlined">delete</span></button>
+    </ng-container>
+  </div>
+</td>
+            </tr>
+          </tbody>
+        </table>
+        <app-pagination
+  [totalItems]="myTasks.length"
+  [pageSize]="myTasksPageSize"
+  [currentPage]="myTasksPage"
+  (pageChange)="myTasksPage = $event"
+  (pageSizeChange)="onMyTasksPageSizeChange($event)">
+</app-pagination>
+        <p *ngIf="myTasks.length === 0" class="empty-state">No tasks assigned to you.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="material-symbols-outlined">event_busy</span>My Leave</div>
+      <div class="card">
+        <form (ngSubmit)="submitMyLeave()">
+          <div class="form-grid">
+            <div class="form-group"><label>Start Date</label><input type="date" [(ngModel)]="leaveForm.startDate" name="startDate" required /></div>
+            <div class="form-group"><label>End Date</label><input type="date" [(ngModel)]="leaveForm.endDate" name="endDate" required /></div>
+            <div class="form-group">
+              <label>Leave Type</label>
+              <select [(ngModel)]="leaveForm.leaveType" name="leaveType" required>
+                <option *ngFor="let t of leaveTypes" [value]="t">{{ t }}</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Reason</label><input type="text" [(ngModel)]="leaveForm.reason" name="reason" placeholder="Optional" /></div>
+          </div>
+
+          <div class="form-group leave-attachment-group">
+            <label>
+              Supporting Document
+              <span *ngIf="isMedicalLeaveSelected" class="required-mark">(required for Medical Leave)</span>
+            </label>
+
+            <input type="file" #leaveFileInput accept=".pdf,.jpg,.jpeg,.png" (change)="onLeaveFileSelected($event)" hidden />
+
+            <div class="file-upload-row" *ngIf="!leaveForm.attachment">
+              <button type="button" class="btn btn-outline btn-sm" (click)="leaveFileInput.click()">
+                <span class="material-symbols-outlined">upload_file</span>Choose File
+              </button>
+              <span class="file-upload-hint">PDF, JPG, JPEG or PNG · up to 5 MB</span>
+            </div>
+
+            <div class="file-selected-row" *ngIf="leaveForm.attachment">
+              <span class="material-symbols-outlined">description</span>
+              <span class="file-selected-name">{{ leaveForm.attachment.name }}</span>
+              <span class="file-selected-size">({{ (leaveForm.attachment.size / 1024 / 1024) | number:'1.1-2' }} MB)</span>
+              <button type="button" class="btn btn-outline btn-sm" (click)="removeLeaveAttachment(leaveFileInput)">
+                <span class="material-symbols-outlined">close</span>Remove
+              </button>
+            </div>
+
+            <p *ngIf="leaveAttachmentError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ leaveAttachmentError }}</p>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="submittingLeave">
+              <span class="material-symbols-outlined">send</span>
+              {{ submittingLeave ? 'Submitting…' : 'Apply for Leave' }}
+            </button>
+          </div>
+          <p *ngIf="myLeaveError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ myLeaveError }}</p>
+          <p *ngIf="myLeaveSuccess" class="alert alert-success"><span class="material-symbols-outlined">check_circle</span>{{ myLeaveSuccess }}</p>
+        </form>
+      </div>
+
+      <div class="table-wrap" style="margin-top: 14px;">
+        <table *ngIf="myLeaveRequests.length > 0">
+          <thead><tr><th>Start</th><th>End</th><th>Type</th><th>Reason</th><th>Status</th><th>Attachment</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let l of myLeaveRequests">
+              <td>{{ l.startDate | date:'mediumDate' }}</td>
+              <td>{{ l.endDate | date:'mediumDate' }}</td>
+              <td>{{ l.leaveType }}</td>
+              <td>{{ l.reason || '—' }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + l.status">{{ l.status }}</span></td>
+              <td>
+                <button *ngIf="l.hasAttachment" class="btn btn-outline btn-sm" [disabled]="downloadingAttachmentId === l.id" (click)="downloadAttachment(l)">
+                  <span class="material-symbols-outlined">download</span>{{ downloadingAttachmentId === l.id ? 'Downloading…' : 'View' }}
+                </button>
+                <span *ngIf="!l.hasAttachment">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <app-pagination
+  [totalItems]="myLeaveRequests.length"
+  [pageSize]="myLeavePageSize"
+  [currentPage]="myLeavePage"
+  (pageChange)="myLeavePage = $event"
+  (pageSizeChange)="onMyLeavePageSizeChange($event)">
+</app-pagination>
+        <p *ngIf="myLeaveRequests.length === 0" class="empty-state">No leave requests yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= LEAVE (direct reports) ================= -->
+  <div *ngIf="activeTab === 'leave'" class="fade-in">
+    <div class="section-title"><span class="material-symbols-outlined">event_busy</span>Leave Requests From My Direct Reports</div>
+    <p *ngIf="teamLeaveError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ teamLeaveError }}</p>
+    <div class="table-wrap">
+      <table *ngIf="teamLeaveRequests.length > 0">
+        <thead><tr><th>Employee</th><th>Start</th><th>End</th><th>Type</th><th>Reason</th><th>Attachment</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let r of teamLeaveRequests">
+            <td>{{ r.employeeName }}</td>
+            <td>{{ r.startDate | date:'mediumDate' }}</td>
+            <td>{{ r.endDate | date:'mediumDate' }}</td>
+            <td>{{ r.leaveType }}</td>
+            <td>{{ r.reason || '—' }}</td>
+            <td>
+  <button *ngIf="r.hasAttachment" class="btn btn-outline btn-sm" [disabled]="downloadingAttachmentId === r.id" (click)="downloadAttachment(r)">
+    <span class="material-symbols-outlined">download</span>{{ downloadingAttachmentId === r.id ? 'Downloading…' : 'View' }}
+  </button>
+  <span *ngIf="!r.hasAttachment">—</span>
+</td>
+            <td><span class="badge" [ngClass]="'badge-' + r.status">{{ r.status }}</span></td>
+            <td>
+              <ng-container *ngIf="r.status === 'Pending'; else decided">
+                <button class="btn btn-success btn-sm" (click)="onApproveTeam(r.id)"><span class="material-symbols-outlined">check</span>Approve</button>
+                <button class="btn btn-danger btn-sm" (click)="onRejectTeam(r.id)"><span class="material-symbols-outlined">close</span>Reject</button>
+              </ng-container>
+              <ng-template #decided>—</ng-template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="teamLeaveRequests.length === 0" class="empty-state">No leave requests from anyone reporting to you.</p>
+    </div>
+  </div>
+
+  <!-- ================= ORG HIERARCHY ================= -->
+  <div *ngIf="activeTab === 'hierarchy'" class="fade-in">
+    <div class="section-title"><span class="material-symbols-outlined">account_tree</span>Organizational Hierarchy</div>
+    <div class="card">
+      <app-org-tree [nodes]="hierarchy"></app-org-tree>
+    </div>
+  </div>
+
+  <!-- ================= HR MANAGER ONLY ================= -->
+
+  <!-- EMPLOYEES -->
+  <div *ngIf="isHrManager && activeTab === 'employees'" class="fade-in">
+    <div class="section-title">
+      <span><span class="material-symbols-outlined">badge</span>Employee List</span>
+      <button class="btn btn-primary btn-sm" (click)="openRegisterModal()">
+        <span class="material-symbols-outlined">person_add</span>Register Employee
+      </button>
+    </div>
+    <p *ngIf="employeesError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ employeesError }}</p>
+    <div class="table-wrap">
+      <table *ngIf="employees.length > 0">
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Manager</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of pagedEmployees">
+            <td>{{ e.displayId || '—' }}</td>
+            <td>{{ e.fullName }}</td>
+            <td>{{ e.email }}</td>
+            <td>{{ e.departmentName || '—' }}</td>
+            <td>{{ e.managerName || '—' }}</td>
+            <td><span class="badge" [ngClass]="'badge-' + e.role">{{ e.role }}</span></td>
+            <td><span class="badge" [ngClass]="'badge-' + e.accountStatus">{{ e.accountStatus }}</span></td>
+            <td style="min-width: 230px;">
+  <div class="task-actions">
+    <select style="padding: 5px 8px; border-radius: 6px; border: 1px solid var(--color-border); font-size: 12.5px;"
+      [ngModel]="e.role" (ngModelChange)="changeRole(e, $event)">
+      <option *ngFor="let r of roles" [ngValue]="r">{{ r }}</option>
+    </select>
+    <button class="btn btn-sm" [ngClass]="e.accountStatus === 'Active' ? 'btn-danger' : 'btn-success'" (click)="toggleStatus(e)">
+      {{ e.accountStatus === 'Active' ? 'Deactivate' : 'Activate' }}
+    </button>
+  </div>
+</td>
+          </tr>
+        </tbody>
+      </table>
+      <app-pagination [totalItems]="employees.length" [pageSize]="employeesPageSize" [currentPage]="employeesPage" (pageChange)="employeesPage = $event" (pageSizeChange)="onEmployeesPageSizeChange($event)"></app-pagination>
+      <p *ngIf="employees.length === 0" class="empty-state">No employees found.</p>
+    </div>
+  </div>
+
+  <!-- MANAGERS -->
+  <div *ngIf="isHrManager && activeTab === 'managers'" class="fade-in">
+    <div class="section-title"><span class="material-symbols-outlined">supervisor_account</span>Managers</div>
+    <div class="table-wrap">
+      <table *ngIf="managers.length > 0">
+        <thead><tr><th>ID</th><th>Name</th><th>Department</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let m of pagedManagers">
+            <td>{{ m.displayId || '—' }}</td>
+            <td>{{ m.fullName }}</td>
+            <td>{{ m.departmentName || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <app-pagination
+  [totalItems]="managers.length"
+  [pageSize]="managersPageSize"
+  [currentPage]="managersPage"
+  (pageChange)="managersPage = $event"
+  (pageSizeChange)="onManagersPageSizeChange($event)">
+</app-pagination>
+      <p *ngIf="managers.length === 0" class="empty-state">No managers found.</p>
+    </div>
+  </div>
+
+  <!-- DEPARTMENTS -->
+  <div *ngIf="isHrManager && activeTab === 'departments'" class="fade-in">
+    <div class="section-title">
+      <span><span class="material-symbols-outlined">apartment</span>Departments</span>
+      <button class="btn btn-primary btn-sm" (click)="openDeptModal()">
+        <span class="material-symbols-outlined">add</span>Add Department
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table *ngIf="departments.length > 0">
+        <thead><tr><th>Name</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let d of pagedDepartments">
+            <td>{{ d.name }}</td>
+            <td>{{ d.description || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <app-pagination
+  [totalItems]="departments.length"
+  [pageSize]="departmentsPageSize"
+  [currentPage]="departmentsPage"
+  (pageChange)="departmentsPage = $event"
+  (pageSizeChange)="onDepartmentsPageSizeChange($event)">
+</app-pagination>
+      <p *ngIf="departments.length === 0" class="empty-state">No departments yet.</p>
+    </div>
+  </div>
+
+  <!-- MY HR TEAM -->
+  <div *ngIf="isHrManager && activeTab === 'hrTeam'" class="fade-in">
+    <div class="section-title"><span class="material-symbols-outlined">diversity_3</span>HR Employees Reporting To Me</div>
+    <p *ngIf="hrTeamError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ hrTeamError }}</p>
+    <div class="table-wrap">
+      <table *ngIf="hrTeam.length > 0">
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Status</th><th>Last Login</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let h of pagedHrTeam">
+            <td>{{ h.displayId || '—' }}</td>
+            <td>{{ h.fullName }}</td>
+            <td>{{ h.email }}</td>
+            <td><span class="badge" [ngClass]="'badge-' + h.accountStatus">{{ h.accountStatus }}</span></td>
+            <td>{{ h.lastLoginAt ? (h.lastLoginAt | date:'medium') : 'Never' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <app-pagination
+  [totalItems]="hrTeam.length"
+  [pageSize]="hrTeamPageSize"
+  [currentPage]="hrTeamPage"
+  (pageChange)="hrTeamPage = $event"
+  (pageSizeChange)="onHrTeamPageSizeChange($event)">
+</app-pagination>
+      <p *ngIf="hrTeam.length === 0" class="empty-state">No HR employees report to you directly.</p>
+    </div>
+
+    <div class="card" style="margin-top: 18px;">
+      <h3>Assign a Task to an HR Employee</h3>
+      <form (ngSubmit)="submitAssignHrTask()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Assign To</label>
+            <select [(ngModel)]="assignForm.assignedToUserId" name="assignedToUserId">
+              <option [ngValue]="0" disabled>Select HR employee</option>
+              <option *ngFor="let h of hrTeam" [ngValue]="h.id">{{ h.fullName }} ({{ h.displayId }})</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Title</label><input type="text" [(ngModel)]="assignForm.title" name="title" required /></div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select [(ngModel)]="assignForm.priority" name="priority">
+              <option *ngFor="let p of priorities" [ngValue]="p">{{ p }}</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Deadline</label><input type="date" [(ngModel)]="assignForm.deadline" name="deadline" /></div>
+          <div class="form-group" style="grid-column: 1 / -1;">
+            <label>Description</label>
+            <textarea [(ngModel)]="assignForm.description" name="description" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" [disabled]="assigningTask">
+            <span class="material-symbols-outlined">add_task</span>
+            {{ assigningTask ? 'Assigning…' : 'Assign Task' }}
+          </button>
+        </div>
+        <p *ngIf="assignError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ assignError }}</p>
+        <p *ngIf="assignSuccess" class="alert alert-success"><span class="material-symbols-outlined">check_circle</span>{{ assignSuccess }}</p>
+      </form>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="material-symbols-outlined">bar_chart</span>HR Team Task Progress</div>
+      <app-bar-chart [data]="hrTeamTaskStatusChart"></app-bar-chart>
+
+      <div class="table-wrap" style="margin-top: 18px;">
+        <table *ngIf="hrTeamTasks.length > 0">
+          <thead><tr><th>Title</th><th>Assigned To</th><th>Priority</th><th>Deadline</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let t of hrTeamTasks">
+              <td>{{ t.title }}</td>
+              <td>{{ t.assignedToName }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + t.priority">{{ t.priority }}</span></td>
+              <td>{{ t.deadline ? (t.deadline | date:'mediumDate') : '—' }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + t.status">{{ t.status }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p *ngIf="hrTeamTasks.length === 0" class="empty-state">No tasks assigned to your HR team yet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= REGULARIZATION ================= -->
+<div *ngIf="activeTab === 'regularization'" class="fade-in">
+  <app-attendance-regularization [prefillDate]="regularizationPrefillDate" (decided)="onRegularizationDecided()"></app-attendance-regularization>
+</div>
+
+<div *ngIf="activeTab === 'passwordResets'" class="fade-in">
+  <div class="section">
+    <div class="section-title"><span class="material-symbols-outlined">password</span>Password Reset Requests</div>
+
+    <div class="card temp-password-card" *ngIf="lastTemporaryPassword">
+      <p><strong>Temporary password for {{ lastTemporaryPassword.userName }}:</strong></p>
+      <p class="temp-password-value">{{ lastTemporaryPassword.password }}</p>
+      <p class="temp-password-hint">Share this with the employee securely. It will not be shown again.</p>
+      <button type="button" class="btn btn-outline btn-sm" (click)="lastTemporaryPassword = null">Dismiss</button>
+    </div>
+
+    <p *ngIf="passwordResetError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ passwordResetError }}</p>
+
+    <div class="table-wrap">
+      <table *ngIf="!passwordResetLoading && passwordResetRequests.length > 0">
+        <thead>
+          <tr>
+            <th>Employee</th><th>Email</th><th>Status</th><th>Requested</th><th>Resolved</th><th>Resolved By</th>
+            <th *ngIf="isHrManager">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of passwordResetRequests">
+            <td>{{ r.employeeName }} <span class="badge" *ngIf="r.employeeDisplayId">{{ r.employeeDisplayId }}</span></td>
+            <td>{{ r.employeeEmail }}</td>
+            <td><span class="badge" [ngClass]="'badge-' + r.status">{{ r.status }}</span></td>
+            <td>{{ r.requestedAt | date:'medium' }}</td>
+            <td>{{ r.resolvedAt ? (r.resolvedAt | date:'medium') : '—' }}</td>
+            <td>{{ r.resolvedByName || '—' }}</td>
+            <td *ngIf="isHrManager">
+              <div class="action-buttons-row" *ngIf="r.status === 'Pending'">
+                <button class="btn btn-success btn-sm" [disabled]="resolvingResetId === r.id" (click)="resetPassword(r)">
+                  <span class="material-symbols-outlined">lock_reset</span>Reset
+                </button>
+                <button class="btn btn-danger btn-sm" (click)="openRejectResetModal(r)">
+                  <span class="material-symbols-outlined">close</span>Reject
+                </button>
+              </div>
+              <span *ngIf="r.status !== 'Pending'">—</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p *ngIf="!passwordResetLoading && passwordResetRequests.length === 0" class="empty-state">No password reset requests.</p>
+      <p *ngIf="passwordResetLoading" class="loading-state">Loading…</p>
+    </div>
+  </div>
+</div>
+
+</app-shell>
+
+<!-- ================= MODALS ================= -->
+
+<app-modal [open]="showPersonalTaskForm" [title]="editingTaskId ? 'Edit Task' : 'New Personal Task'" size="md" (closed)="cancelPersonalTaskForm()">
+  <form (ngSubmit)="submitPersonalTask()">
+    <div class="form-grid">
+      <div class="form-group" style="grid-column: 1 / -1;"><label>Title</label><input type="text" [(ngModel)]="personalTaskForm.title" name="pTitle" required /></div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select [(ngModel)]="personalTaskForm.priority" name="pPriority">
+          <option *ngFor="let p of priorities" [ngValue]="p">{{ p }}</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Deadline</label><input type="date" [(ngModel)]="personalTaskForm.deadline" name="pDeadline" /></div>
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>Description</label>
+        <textarea [(ngModel)]="personalTaskForm.description" name="pDescription" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="savingPersonalTask">
+        {{ savingPersonalTask ? 'Saving…' : (editingTaskId ? 'Save Changes' : 'Create Task') }}
+      </button>
+      <button type="button" class="btn btn-outline" (click)="cancelPersonalTaskForm()">Cancel</button>
+    </div>
+    <p *ngIf="personalTaskError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ personalTaskError }}</p>
+  </form>
+</app-modal>
+
+<app-modal [open]="showRegisterModal" title="Register New Employee" size="lg" (closed)="showRegisterModal = false">
+  <form (ngSubmit)="submitRegister()">
+    <div class="form-grid">
+      <div class="form-group"><label>Full Name</label><input type="text" [(ngModel)]="registerForm.fullName" name="fullName" required /></div>
+      <div class="form-group"><label>Email</label><input type="email" [(ngModel)]="registerForm.email" name="email" required /></div>
+      <div class="form-group"><label>Password</label><input type="password" [(ngModel)]="registerForm.password" name="password" required /></div>
+      <div class="form-group">
+        <label>Role</label>
+        <select [(ngModel)]="registerForm.role" name="role">
+          <option *ngFor="let r of roles" [ngValue]="r">{{ r }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Department</label>
+        <select [(ngModel)]="registerForm.departmentId" name="departmentId">
+          <option [ngValue]="null">No department</option>
+          <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Manager</label>
+        <select [(ngModel)]="registerForm.managerId" name="managerId">
+          <option [ngValue]="null">No manager</option>
+          <option *ngFor="let m of managers" [ngValue]="m.id">{{ m.fullName }} ({{ m.displayId }})</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="registering">
+        <span class="material-symbols-outlined">person_add</span>
+        {{ registering ? 'Registering…' : 'Register Employee' }}
+      </button>
+      <button type="button" class="btn btn-outline" (click)="showRegisterModal = false">Cancel</button>
+    </div>
+    <p *ngIf="registerError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ registerError }}</p>
+    <p *ngIf="registerSuccess" class="alert alert-success"><span class="material-symbols-outlined">check_circle</span>{{ registerSuccess }}</p>
+  </form>
+</app-modal>
+
+<app-modal [open]="showDeptModal" title="Add Department" size="sm" (closed)="showDeptModal = false">
+  <form (ngSubmit)="createDepartment()">
+    <div class="form-grid">
+      <div class="form-group"><label>Name</label><input type="text" [(ngModel)]="newDeptName" name="newDeptName" required /></div>
+      <div class="form-group"><label>Description</label><input type="text" [(ngModel)]="newDeptDescription" name="newDeptDescription" placeholder="Optional" /></div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        <span class="material-symbols-outlined">add</span>Add Department
+      </button>
+      <button type="button" class="btn btn-outline" (click)="showDeptModal = false">Cancel</button>
+    </div>
+    <p *ngIf="deptError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ deptError }}</p>
+    <p *ngIf="deptSuccess" class="alert alert-success"><span class="material-symbols-outlined">check_circle</span>{{ deptSuccess }}</p>
+  </form>
+</app-modal>
+
+<app-modal [open]="showRejectResetModal" title="Reject Password Reset Request" size="sm" (closed)="showRejectResetModal = false">
+  <div class="form-group">
+    <label>Rejection Reason</label>
+    <input type="text" [(ngModel)]="rejectResetReason" name="rejectResetReason" placeholder="Required" />
+  </div>
+  <div class="form-actions">
+    <button type="button" class="btn btn-danger" (click)="confirmRejectReset()">
+      <span class="material-symbols-outlined">close</span>Confirm Reject
+    </button>
+    <button type="button" class="btn btn-outline" (click)="showRejectResetModal = false">Cancel</button>
+  </div>
+  <p *ngIf="rejectResetError" class="alert alert-error"><span class="material-symbols-outlined">error</span>{{ rejectResetError }}</p>
+</app-modal>

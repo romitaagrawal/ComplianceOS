@@ -1,0 +1,7 @@
+<div class="rate-limit-banner" *ngIf="notice.message() as msg" role="alert">
+  <span class="material-symbols-outlined rate-limit-icon">hourglass_top</span>
+  <span class="rate-limit-text">{{ msg }}</span>
+  <button type="button" class="rate-limit-close" (click)="dismiss()" aria-label="Dismiss">
+    <span class="material-symbols-outlined">close</span>
+  </button>
+</div>
