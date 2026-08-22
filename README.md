@@ -106,7 +106,3 @@ Accounts are provisioned by HR — there is no public self-registration in the U
 - The JWT carries no password/security-stamp claim, so changing a password does not invalidate the current session.
 - Leave attachments are stored outside any publicly-served directory and are only ever returned through an authenticated, authorization-checked endpoint.
 - CORS is restricted to the Angular dev origin, explicit HTTP methods, and explicit headers only.
-
-## License
-
-_Add a license here if you plan to make this public, e.g. MIT._
