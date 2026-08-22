@@ -1,4 +1,4 @@
-# ===== Backend (.NET) — note: "ComplianceApi" here is the inner project folder =====
+# ===== Backend (.NET) =====
 ComplianceApi/bin/
 ComplianceApi/obj/
 ComplianceApi/*.user
@@ -12,9 +12,9 @@ ComplianceApi/appsettings.Development.json
 ComplianceApi/LeaveAttachments/
 
 # ===== Frontend (Angular) =====
-frontend/node_modules/
-frontend/.angular/
-frontend/dist/
+frontend/compliance-ui/node_modules/
+frontend/compliance-ui/.angular/
+frontend/compliance-ui/dist/
 
 # ===== OS/editor noise =====
 .DS_Store
